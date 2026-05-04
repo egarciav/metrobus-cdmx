@@ -33,9 +33,17 @@ export function estimateTravelTime(distanceKm, avgSpeedKmh, stopTimeS) {
 }
 
 /**
- * Format time as "X min" or "X min Y s"
+ * Format time as "X min", "X min Y s", or "Xh Ym Zs" when >= 60 min
  */
 export function formatTime(minutes, seconds) {
+  if (minutes >= 60) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (m === 0 && seconds === 0) return `${h}h`;
+    if (seconds === 0) return `${h}h ${m}min`;
+    if (m === 0) return `${h}h ${seconds}s`;
+    return `${h}h ${m}min ${seconds}s`;
+  }
   if (minutes === 0) return `${seconds}s`;
   if (seconds === 0) return `${minutes} min`;
   return `${minutes} min ${seconds}s`;
