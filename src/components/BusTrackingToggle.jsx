@@ -4,7 +4,7 @@ import { Radio, Info } from 'lucide-react';
 export default function BusTrackingToggle({ onToggle }) {
   const [isActive, setIsActive] = useState(() => {
     const saved = localStorage.getItem('busTrackingActive');
-    return saved !== null ? JSON.parse(saved) : true;
+    return saved !== null ? JSON.parse(saved) : false; // default: apagado (opt-in)
   });
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 

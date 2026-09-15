@@ -78,7 +78,8 @@ async function fetchGTFSRTData() {
   }
 
   try {
-    const proxyUrl = authData.urlRealTime.replace('https://sonda-gtfs-prd.s3.amazonaws.com', '/gtfs-proxy');
+    // Usar el proxy serverless /api/gtfs para evitar CORS con S3
+    const proxyUrl = `/api/gtfs?url=${encodeURIComponent(authData.urlRealTime)}`;
     const response = await fetch(proxyUrl);
 
     if (!response.ok) {
