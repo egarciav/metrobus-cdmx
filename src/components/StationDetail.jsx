@@ -1,9 +1,53 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { simulateOccupancy, getOccupancyLabel, formatTime } from "../utils/helpers";
 import { calculateDirectETA } from "../services/etaCalculator";
 import { METROBUS_LINES } from "../data/metrobusLines";
+import { onRealtimeUpdate, getETAForStation } from "../services/gtfsRealtime";
 
 export default function StationDetail({ station, onClose, closedStations = {} }) {
+  const [realtimeETAs, setRealtimeETAs] = useState([]);
+
+  useEffect(() => {
+    if (!station) return;
+
+    const updateETAs = () => {
+      const etas = [];
+      if (station.lines) {
+        for (const line of station.lines) {
+          const arrivals = getETAForStation(station.stationId, line.lineId);
+          for (const arrival of arrivals) {
+            etas.push({
+              lineLabel: line.lineLabel,
+              lineColor: line.color,
+              minutesAway: arrival.minutesAway,
+              delay: arrival.delay,
+              tripId: arrival.tripId
+            });
+          }
+        }
+      } else {
+        const arrivals = getETAForStation(station.stationId, station.lineId);
+        for (const arrival of arrivals) {
+          etas.push({
+            lineLabel: station.lineLabel,
+            lineColor: station.color,
+            minutesAway: arrival.minutesAway,
+            delay: arrival.delay,
+            tripId: arrival.tripId
+          });
+        }
+      }
+      setRealtimeETAs(etas);
+    };
+
+    updateETAs();
+    const unsub = onRealtimeUpdate(() => {
+      updateETAs();
+    });
+
+    return unsub;
+  }, [station]);
+
   const nearbyETAs = useMemo(() => {
     if (!station) return [];
     const stationName = station.name;
@@ -114,6 +158,32 @@ export default function StationDetail({ station, onClose, closedStations = {} })
                 <span>Muy alta</span>
               </div>
             </div>
+
+            {/* Real-time bus arrivals */}
+            {realtimeETAs.length > 0 && (
+              <div className="detail-section">
+                <div className="detail-section-header">
+                  <span>🚍 Próximas llegadas (tiempo real)</span>
+                  <span className="live-indicator">● EN VIVO</span>
+                </div>
+                {realtimeETAs.map((eta, i) => (
+                  <div key={i} className="eta-row">
+                    <div className="eta-row-info">
+                      <span className="eta-row-line-dot" style={{ background: eta.lineColor }} />
+                      <div>
+                        <p className="eta-row-station">{eta.lineLabel}</p>
+                        {eta.delay > 0 && (
+                          <p className="eta-row-delay">+{Math.floor(eta.delay / 60)} min retraso</p>
+                        )}
+                      </div>
+                    </div>
+                    <span className="eta-row-time">
+                      {eta.minutesAway !== null ? `${eta.minutesAway} min` : 'Calculando...'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* ETA to adjacent stations */}
             {nearbyETAs.length > 0 && (

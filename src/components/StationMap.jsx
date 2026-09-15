@@ -7,6 +7,9 @@ import Map, {
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { simulateOccupancy, getOccupancyLabel } from "../utils/helpers";
+import BusMarkers from "./BusMarkers";
+import BusDetailPopup from "./BusDetailPopup";
+import { startRealtimePolling, stopRealtimePolling, onRealtimeUpdate } from "../services/gtfsRealtime";
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -18,9 +21,11 @@ const INITIAL_VIEW = {
   bearing: -15,
 };
 
-export default function StationMap({ stations, selected, onSelect, onDeselect, closedStations = {} }) {
+export default function StationMap({ stations, selected, onSelect, onDeselect, closedStations = {}, busTrackingEnabled = true }) {
   const mapRef = useRef(null);
   const [hoveredId, setHoveredId] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedBus, setSelectedBus] = useState(null);
 
   const flyTo = useCallback((lat, lng) => {
     const map = mapRef.current;
@@ -47,6 +52,17 @@ export default function StationMap({ stations, selected, onSelect, onDeselect, c
       flyTo(selected.lat, selected.lng);
     }
   }, [selected, flyTo]);
+
+  useEffect(() => {
+    startRealtimePolling();
+    const unsub = onRealtimeUpdate(({ vehicles: v }) => {
+      setVehicles(v || []);
+    });
+    return () => {
+      unsub();
+      stopRealtimePolling();
+    };
+  }, []);
 
   const handleMarkerClick = useCallback(
     (station, e) => {
@@ -122,6 +138,8 @@ export default function StationMap({ stations, selected, onSelect, onDeselect, c
       <GeolocateControl position="top-right" />
       <ScaleControl position="bottom-right" />
 
+      {busTrackingEnabled && <BusMarkers vehicles={vehicles} onBusClick={setSelectedBus} />}
+
       {stations.map((station) => {
         const isSelected = selected?.id === station.id;
         const isHovered = hoveredId === station.id;
@@ -146,7 +164,7 @@ export default function StationMap({ stations, selected, onSelect, onDeselect, c
               onMouseLeave={() => setHoveredId(null)}
               title={isClosed ? `${station.name} — 🚫 CERRADA` : `${station.name} — Ocupación: ${occInfo.label}`}
             >
-              <svg width="28" height="36" viewBox="0 0 28 36">
+              <svg width="24" height="32" viewBox="0 0 28 36">
                 <defs>
                   <filter id={`sh${station.id}`} x="-30%" y="-20%" width="160%" height="160%">
                     <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.35" />
@@ -189,6 +207,47 @@ export default function StationMap({ stations, selected, onSelect, onDeselect, c
           </Marker>
         );
       })}
+
+      {busTrackingEnabled && selectedBus && (
+        <div className="bus-popup-overlay" onClick={() => setSelectedBus(null)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <BusDetailPopup
+              bus={selectedBus}
+              onClose={() => setSelectedBus(null)}
+              nearestStation={findNearestStation(selectedBus, stations)}
+            />
+          </div>
+        </div>
+      )}
     </Map>
   );
+}
+
+function findNearestStation(bus, stations) {
+  if (!bus || !stations || stations.length === 0) return null;
+
+  let nearest = null;
+  let minDistance = Infinity;
+
+  for (const station of stations) {
+    const distance = getDistance(bus.lat, bus.lng, station.lat, station.lng);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = station;
+    }
+  }
+
+  return minDistance < 1 ? nearest : null;
+}
+
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }

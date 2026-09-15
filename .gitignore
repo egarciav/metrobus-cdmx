@@ -16,10 +16,12 @@ dist-ssr/
 !.vscode/extensions.json
 .idea
 
-# Env
+# Env - NUNCA commitear credenciales
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
 
 # OS
 .DS_Store

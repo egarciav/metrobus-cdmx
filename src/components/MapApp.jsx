@@ -5,6 +5,7 @@ import StationDetail from "./StationDetail";
 import ETAPanel from "./ETAPanel";
 import StatusBar from "./StatusBar";
 import Disclaimer from "./Disclaimer";
+import BusTrackingToggle from "./BusTrackingToggle";
 import { ALL_METROBUS_STATIONS } from "../data/metrobusLines";
 import { startAlertPolling, stopAlertPolling, onAlertUpdate } from "../services/liveAlerts";
 
@@ -12,6 +13,7 @@ export default function MapApp() {
   const [selected, setSelected] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [closedStations, setClosedStations] = useState({});
+  const [busTrackingEnabled, setBusTrackingEnabled] = useState(true);
 
   const stations = useMemo(() => {
     const transferMap = {};
@@ -55,6 +57,10 @@ export default function MapApp() {
     setSelected(null);
   }, []);
 
+  const handleBusTrackingToggle = useCallback((enabled) => {
+    setBusTrackingEnabled(enabled);
+  }, []);
+
   return (
     <div className="app">
       <Sidebar
@@ -76,12 +82,15 @@ export default function MapApp() {
           Estaciones
         </button>
 
+        <BusTrackingToggle onToggle={handleBusTrackingToggle} />
+
         <StationMap
           stations={stations}
           selected={selected}
           onSelect={handleSelect}
           onDeselect={handleDeselect}
           closedStations={closedStations}
+          busTrackingEnabled={busTrackingEnabled}
         />
 
         <StationDetail station={selected} onClose={handleDeselect} closedStations={closedStations} />
