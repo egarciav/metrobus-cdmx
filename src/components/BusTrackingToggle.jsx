@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Radio, Info } from 'lucide-react';
 
+// Clave versionada: al cambiar la versión se ignora el valor guardado anteriormente
+const STORAGE_KEY = 'busTrackingActive_v2';
+
 export default function BusTrackingToggle({ onToggle }) {
   const [isActive, setIsActive] = useState(() => {
-    const saved = localStorage.getItem('busTrackingActive');
+    const saved = localStorage.getItem(STORAGE_KEY);
     return saved !== null ? JSON.parse(saved) : false; // default: apagado (opt-in)
   });
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('busTrackingActive', JSON.stringify(isActive));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(isActive));
     onToggle(isActive);
   }, [isActive, onToggle]);
 

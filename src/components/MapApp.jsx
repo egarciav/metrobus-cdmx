@@ -13,7 +13,7 @@ export default function MapApp() {
   const [selected, setSelected] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [closedStations, setClosedStations] = useState({});
-  const [busTrackingEnabled, setBusTrackingEnabled] = useState(true);
+  const [busTrackingEnabled, setBusTrackingEnabled] = useState(false);
 
   const stations = useMemo(() => {
     const transferMap = {};
