@@ -1,10 +1,9 @@
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import { loadShapes, getRandomPointOnLine, getNextPointOnRoute, interpolateAlongRoute, getLineNumberFromRouteId, isValidRouteId } from './gtfsShapes';
 
-const AUTH_ENDPOINT = '/auth-proxy/gtfs-api/partnerValidation';
-
-const API_USERNAME = import.meta.env.VITE_METROBUS_USERNAME;
-const API_PASSWORD = import.meta.env.VITE_METROBUS_PASSWORD;
+// La autenticación se realiza en el servidor (api/auth.js)
+// Las credenciales NUNCA llegan al navegador
+const AUTH_ENDPOINT = '/api/auth';
 
 let realtimeUrl = null;
 let staticUrl = null;
@@ -22,56 +21,48 @@ let shapesLoaded = false;
 let animationFrame = null;
 
 async function authenticate() {
-  if (!API_USERNAME || !API_PASSWORD) {
-    console.warn('No API credentials configured. Using simulated data.');
-    return null;
-  }
-
+  // Cache local: evitar llamar a /api/auth en cada poll
   if (realtimeUrl && urlExpiry && Date.now() < urlExpiry - 60000) {
     return lastAuthResponse;
   }
 
   try {
-    const response = await fetch(AUTH_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        usuario: API_USERNAME,
-        senha: API_PASSWORD
-      })
-    });
+    // Llama al endpoint serverless — las credenciales están en el servidor
+    const response = await fetch(AUTH_ENDPOINT);
 
     if (!response.ok) {
+      if (response.status === 503) {
+        console.warn('API credentials not configured on server. Using simulated data.');
+        return null;
+      }
       throw new Error(`Authentication failed: ${response.status}`);
     }
 
     const data = await response.json();
-    
+
     realtimeUrl = data.urlRealTime;
     staticUrl = data.urlStatic;
-    
+
     if (data.expirationDateTime) {
       const expirationParts = data.expirationDateTime.split(/[- :]/);
       const expirationDate = new Date(
-        expirationParts[0],
-        expirationParts[1] - 1,
-        expirationParts[2],
-        expirationParts[3],
-        expirationParts[4],
-        expirationParts[5]
+        Number(expirationParts[0]),
+        Number(expirationParts[1]) - 1,
+        Number(expirationParts[2]),
+        Number(expirationParts[3]),
+        Number(expirationParts[4]),
+        Number(expirationParts[5])
       );
       urlExpiry = expirationDate.getTime();
     } else {
       urlExpiry = Date.now() + (9 * 60 * 1000);
     }
-    
+
     lastAuthResponse = data;
-    
-    console.log('✅ Autenticación exitosa con API del Metrobús');
+
+    console.log('✅ Autenticación exitosa con API del Metrobús (vía servidor)');
     console.log(`🔗 URL GTFS-RT válida hasta: ${data.expirationDateTime || 'próximos 9 min'}`);
-    
+
     return data;
   } catch (error) {
     console.error('Error authenticating with GTFS API:', error);
